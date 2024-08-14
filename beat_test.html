@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDL: Song Visualizer</title>
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #canvas-context {
+            border-radius: 50px;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <h1>Song Visualizer</h1>
+        <div class="container">
+            <input type="file" onchange="setAudio(event)" accept="audio/*">
+            <canvas id="canvas-context" width="700" height="300"></canvas>
+            <audio controls id="audio-player" src="""></audio>
+        </div>
+    </main>
+    <script>
+        const context = new AudioContext();
+        const analyser = context.createAnalyser();
+        analyser.smoothingTimeConstant = 0.1;
+        const canvas = document.getElementById('canvas-context');
+        const canvasCtx = canvas.getContext("2d");
+        const audioInput = document.getElementById("audio-player");
+        const WIDTH = 700;
+        const HEIGHT = 300;
+        let audioFile = null;
+        let audioSource = null;
+        let bufferLength = null
+        let dataArray = null;
+        let playing = false
+
+        canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+
+        function setAudio(event) {
+            audioFile = event.target.files[0];
+            convertFileToData(audioFile, audioInput);
+        }
+
+        function convertFileToData(file, audioPlayer) {
+            const fileReader = new FileReader();
+            fileReader.readAsArrayBuffer(file);
+            fileReader.addEventListener('load', () => {
+                setAudioPlayerSource(audioPlayer, fileReader);
+                context.resume();
+                setUpAnalizer();
+                setUpCanvas();
+                draw();
+            })
+            return
+        }
+
+        function setAudioPlayerSource(audioPlayer, fileReader) {
+            const soundArrayBuffer = fileReader.result;
+            const blob = new Blob([soundArrayBuffer], { type: "audio/mp3" });
+            audioPlayer.src = window.URL.createObjectURL(blob);
+            audioSource = context.createMediaElementSource(audioPlayer);
+        }
+
+        function setUpAnalizer() {
+            analyser.fftSize = 64;
+            audioSource.connect(analyser);
+            analyser.connect(context.destination);
+            bufferLength = analyser.frequencyBinCount;
+            //dataArray = new Uint8Array(bufferLength);
+            dataArray = new Float32Array(bufferLength)
+        }
+
+        function setUpCanvas() {
+            canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+            canvasCtx.fillStyle = "rgb(100 100 100)";
+            canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+        }
+
+        function draw() {
+            console.log("updating canvas")
+            const drawVisual = requestAnimationFrame(draw);
+
+            analyser.getFloatTimeDomainData(dataArray);
+
+            canvasCtx.fillStyle = "rgb(0, 0, 0)";
+            canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            const barWidth = (WIDTH / bufferLength);
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                // const barHeight = dataArray[i]+55;
+                const barHeight = Math.abs(dataArray[i]) * HEIGHT;
+
+
+                //canvasCtx.fillStyle = "rgb(" + (1+ barHeight * 2) + ",50,50)";
+                const y = ((HEIGHT - barHeight) / 2);
+                canvasCtx.fillStyle = `rgb(${1 + barHeight * 3}, ${1 + barHeight}, ${10 + barHeight * 2})`
+                canvasCtx.fillRect(
+                    x,
+                    y,
+                    barWidth,
+                    barHeight
+                );
+
+                x += barWidth + 1;
+            }
+        }
+    </script>
+</body>
+
+</html>
