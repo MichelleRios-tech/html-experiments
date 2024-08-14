@@ -24,7 +24,14 @@
         <div class="container">
             <input type="file" onchange="setAudio(event)" accept="audio/*">
             <canvas id="canvas-context" width="700" height="300"></canvas>
-            <audio controls id="audio-player" src="""></audio>
+            <audio 
+                controls
+                id="audio-player"
+                crossorigin="anonymous"
+                src="https://echo-api.michelledevlabs.tech/listen/main/radio.mp3"
+                onplay="initVisualizer()"
+                >
+            </audio>
         </div>
     </main>
     <script>
@@ -33,7 +40,7 @@
         analyser.smoothingTimeConstant = 0.1;
         const canvas = document.getElementById('canvas-context');
         const canvasCtx = canvas.getContext("2d");
-        const audioInput = document.getElementById("audio-player");
+        const audioPlayer = document.getElementById("audio-player");
         const WIDTH = 700;
         const HEIGHT = 300;
         let audioFile = null;
@@ -46,30 +53,37 @@
 
         function setAudio(event) {
             audioFile = event.target.files[0];
-            convertFileToData(audioFile, audioInput);
+            convertFileToData(audioFile);
         }
 
-        function convertFileToData(file, audioPlayer) {
+        function convertFileToData(file) {
             const fileReader = new FileReader();
             fileReader.readAsArrayBuffer(file);
             fileReader.addEventListener('load', () => {
                 setAudioPlayerSource(audioPlayer, fileReader);
-                context.resume();
-                setUpAnalizer();
+                initVisualizer()
+                setUpAnalyzer();
                 setUpCanvas();
                 draw();
             })
             return
         }
 
+        function initVisualizer() {
+            audioSource = context.createMediaElementSource(audioPlayer);
+            context.resume();
+            setUpAnalyzer();
+            setUpCanvas();
+            draw();
+        }
+
         function setAudioPlayerSource(audioPlayer, fileReader) {
             const soundArrayBuffer = fileReader.result;
             const blob = new Blob([soundArrayBuffer], { type: "audio/mp3" });
             audioPlayer.src = window.URL.createObjectURL(blob);
-            audioSource = context.createMediaElementSource(audioPlayer);
         }
 
-        function setUpAnalizer() {
+        function setUpAnalyzer() {
             analyser.fftSize = 64;
             audioSource.connect(analyser);
             analyser.connect(context.destination);
