@@ -6,10 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MDL: Song Visualizer</title>
     <style>
-        .container {
+        .song-visualizer__container {
             display: flex;
             flex-direction: column;
             align-items: center;
+        }
+
+        .song-visualizer__beating-note {
+            width: 300px;
+            height: 300px;
+            margin-top: 75px;
         }
 
         #canvas-context {
@@ -21,17 +27,13 @@
 <body>
     <main>
         <h1>Song Visualizer</h1>
-        <div class="container">
+        <div class="song-visualizer__container">
             <input type="file" onchange="setAudio(event)" accept="audio/*">
             <canvas id="canvas-context" width="700" height="300"></canvas>
-            <audio 
-                controls
-                id="audio-player"
-                crossorigin="anonymous"
-                src="https://echo-api.michelledevlabs.tech/listen/main/radio.mp3"
-                onplay="initVisualizer()"
-                >
+            <audio controls id="audio-player" crossorigin="anonymous"
+                src="https://echo-api.michelledevlabs.tech/listen/main/radio.mp3" onplay="initVisualizer()">
             </audio>
+            <img class="song-visualizer__beating-note" id="beating-note" src="https://freesvg.org/img/1364642258.png" alt="beating note"/>
         </div>
     </main>
     <script>
@@ -41,6 +43,7 @@
         const canvas = document.getElementById('canvas-context');
         const canvasCtx = canvas.getContext("2d");
         const audioPlayer = document.getElementById("audio-player");
+        const beatingNote = document.getElementById("beating-note");
         const WIDTH = 700;
         const HEIGHT = 300;
         let audioFile = null;
@@ -60,7 +63,7 @@
             const fileReader = new FileReader();
             fileReader.readAsArrayBuffer(file);
             fileReader.addEventListener('load', () => {
-                setAudioPlayerSource(audioPlayer, fileReader);
+                setAudioPlayerSource(fileReader);
                 initVisualizer()
                 setUpAnalyzer();
                 setUpCanvas();
@@ -71,13 +74,15 @@
 
         function initVisualizer() {
             audioSource = context.createMediaElementSource(audioPlayer);
-            context.resume();
+            if (context.state === "suspended") {
+                context.resume();
+            }
             setUpAnalyzer();
             setUpCanvas();
             draw();
         }
 
-        function setAudioPlayerSource(audioPlayer, fileReader) {
+        function setAudioPlayerSource(fileReader) {
             const soundArrayBuffer = fileReader.result;
             const blob = new Blob([soundArrayBuffer], { type: "audio/mp3" });
             audioPlayer.src = window.URL.createObjectURL(blob);
@@ -88,7 +93,6 @@
             audioSource.connect(analyser);
             analyser.connect(context.destination);
             bufferLength = analyser.frequencyBinCount;
-            //dataArray = new Uint8Array(bufferLength);
             dataArray = new Float32Array(bufferLength)
         }
 
@@ -103,20 +107,23 @@
 
             analyser.getFloatTimeDomainData(dataArray);
 
+            const dataArrayAverage = dataArray.reduce((acc, curr) => acc + curr, 0) / dataArray.length;
+            console.log(dataArrayAverage);
+
+            beatingNote.style.transform = `scale(${1 + ( dataArrayAverage / 5 )})`;
+
             canvasCtx.fillStyle = "rgb(0, 0, 0)";
             canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
-            const barWidth = (WIDTH / bufferLength);
+            const barWidth = (WIDTH / bufferLength) - 1;
             let x = 0;
 
             for (let i = 0; i < bufferLength; i++) {
-                // const barHeight = dataArray[i]+55;
                 const barHeight = Math.abs(dataArray[i]) * HEIGHT;
 
-
-                //canvasCtx.fillStyle = "rgb(" + (1+ barHeight * 2) + ",50,50)";
                 const y = ((HEIGHT - barHeight) / 2);
-                canvasCtx.fillStyle = `rgb(${1 + barHeight * 3}, ${1 + barHeight}, ${10 + barHeight * 2})`
+                // canvasCtx.fillStyle = `rgb(${1 + barHeight * 3}, ${1 + barHeight}, ${10 + barHeight * 2})`
+                canvasCtx.fillStyle = 'rgb(255, 190, 152)' // pantone peach fuz
                 canvasCtx.fillRect(
                     x,
                     y,
